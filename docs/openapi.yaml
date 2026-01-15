@@ -1,0 +1,359 @@
+openapi: 3.0.3
+info:
+  title: Malta Weather API
+  description: |
+    A weather scraping API that collects current and forecast weather data for the Maltese Islands.
+    
+    The system scrapes data from the Maltese Islands Weather website every 30 minutes and provides
+    versioned REST endpoints to access the data.
+    
+    ## Scraping Ethics
+    - Data is scraped responsibly with a 30-minute cadence
+    - Custom User-Agent identifies the service
+    - Exponential backoff on failures
+    - Request timeouts prevent hanging connections
+    - Deduplication prevents storing identical data
+    
+  version: 1.0.0
+  contact:
+    name: Malta Weather API
+servers:
+  - url: http://localhost:3000/v1
+    description: Local development server
+  - url: /v1
+    description: Production server (relative)
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API including database connectivity and scraper metrics
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: '2024-01-01T12:00:00.000Z'
+                database:
+                  connected: true
+                scraper:
+                  lastScrapeTime: '2024-01-01T11:30:00.000Z'
+                  lastScrapeStatus: success
+                  successTotal: 48
+                  failureTotal: 0
+                  lastDuration: '2.5s'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /weather/current:
+    get:
+      summary: Get current weather
+      description: Returns the most recent current weather observation for Malta
+      operationId: getCurrentWeather
+      tags:
+        - Weather
+      responses:
+        '200':
+          description: Current weather data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentWeatherResponse'
+              example:
+                data:
+                  temperature: 23.5
+                  humidity: 65
+                  windSpeed: 12.5
+                  windDirection: NW
+                  condition: Partly Cloudy
+                  iconUrl: https://example.com/icon.png
+                  rainfall: 0
+                  feelsLike: 22.8
+                metadata:
+                  timestamp: '2024-01-01T12:00:00.000Z'
+        '404':
+          description: No data available
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://example.com/problems/no-data
+                title: No Data Available
+                status: 404
+                detail: No current weather data available. The system may not have scraped data yet.
+                instance: /v1/weather/current
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /weather/forecast:
+    get:
+      summary: Get weather forecast
+      description: Returns weather forecast for Malta for the specified number of days (1-6)
+      operationId: getForecast
+      tags:
+        - Weather
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to forecast (1-6)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 6
+            default: 6
+          example: 3
+      responses:
+        '200':
+          description: Forecast data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+              example:
+                data:
+                  - date: '2024-01-02'
+                    tempHigh: 25
+                    tempLow: 18
+                    condition: Sunny
+                    iconUrl: https://example.com/sunny.png
+                    precipitationChance: 10
+                  - date: '2024-01-03'
+                    tempHigh: 23
+                    tempLow: 17
+                    condition: Partly Cloudy
+                    precipitationChance: 20
+                metadata:
+                  timestamp: '2024-01-01T12:00:00.000Z'
+                  days: 2
+                  requestedDays: 3
+        '400':
+          description: Invalid query parameter
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: https://example.com/problems/validation-error
+                title: Invalid query parameter
+                status: 400
+                detail: Parameter 'days' must be between 1 and 6
+                instance: /v1/weather/forecast
+        '404':
+          description: No data available
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        database:
+          type: object
+          properties:
+            connected:
+              type: boolean
+        scraper:
+          type: object
+          properties:
+            lastScrapeTime:
+              type: string
+              format: date-time
+              nullable: true
+            lastScrapeStatus:
+              type: string
+              enum: [success, failure, pending]
+            successTotal:
+              type: integer
+            failureTotal:
+              type: integer
+            lastDuration:
+              type: string
+
+    CurrentWeather:
+      type: object
+      required:
+        - temperature
+        - humidity
+        - windSpeed
+        - windDirection
+        - condition
+        - rainfall
+      properties:
+        temperature:
+          type: number
+          format: float
+          description: Temperature in Celsius
+        humidity:
+          type: integer
+          description: Humidity percentage
+        windSpeed:
+          type: number
+          format: float
+          description: Wind speed in km/h
+        windDirection:
+          type: string
+          description: Wind direction (N, NE, E, SE, S, SW, W, NW)
+        condition:
+          type: string
+          description: Weather condition description
+        iconUrl:
+          type: string
+          format: uri
+          description: URL to weather condition icon
+        rainfall:
+          type: number
+          format: float
+          description: Rainfall in mm
+        feelsLike:
+          type: number
+          format: float
+          description: Feels like temperature in Celsius
+        pressure:
+          type: number
+          format: float
+          description: Atmospheric pressure in hPa
+        visibility:
+          type: number
+          format: float
+          description: Visibility in km
+
+    CurrentWeatherResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CurrentWeather'
+        metadata:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+
+    ForecastDay:
+      type: object
+      required:
+        - date
+        - tempHigh
+        - tempLow
+        - condition
+        - precipitationChance
+      properties:
+        date:
+          type: string
+          format: date
+          description: Forecast date
+        tempHigh:
+          type: number
+          format: float
+          description: High temperature in Celsius
+        tempLow:
+          type: number
+          format: float
+          description: Low temperature in Celsius
+        condition:
+          type: string
+          description: Weather condition description
+        iconUrl:
+          type: string
+          format: uri
+          description: URL to weather condition icon
+        precipitationChance:
+          type: integer
+          description: Chance of precipitation (0-100%)
+        windSpeed:
+          type: number
+          format: float
+          description: Wind speed in km/h
+        humidity:
+          type: integer
+          description: Humidity percentage
+
+    ForecastResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ForecastDay'
+        metadata:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+            days:
+              type: integer
+              description: Number of days returned
+            requestedDays:
+              type: integer
+              description: Number of days requested
+
+    ProblemDetails:
+      type: object
+      description: RFC 7807 Problem Details for HTTP APIs
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference identifying the problem type
+          example: https://example.com/problems/validation-error
+        title:
+          type: string
+          description: Short, human-readable summary of the problem
+          example: Invalid query parameter
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence
+          example: Parameter 'days' must be between 1 and 6
+        instance:
+          type: string
+          description: URI reference identifying the specific occurrence
+          example: /v1/weather/forecast
+
+tags:
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Weather
+    description: Weather data endpoints

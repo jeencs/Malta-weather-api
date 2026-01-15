@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: malta-weather-db
+    environment:
+      POSTGRES_DB: malta_weather
+      POSTGRES_USER: weather_user
+      POSTGRES_PASSWORD: weather_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - malta-weather-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: malta-weather-api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      API_VERSION: v1
+      CORS_ORIGIN: "*"
+      
+      DATABASE_URL: postgresql://weather_user:weather_pass@postgres:5432/malta_weather
+      DB_POOL_SIZE: 10
+      
+      SCRAPE_URL: https://www.malteseislandsweather.com
+      SCRAPE_INTERVAL: "*/3 * * * *"
+      SCRAPE_TIMEOUT: 15000
+      SCRAPE_USER_AGENT: MaltaWeatherAPI/1.0 (Educational Project; Respectful Scraping)
+      SCRAPE_RETRY_ATTEMPTS: 3
+      SCRAPE_RETRY_DELAY: 1000
+      LOG_LEVEL: info
+    networks:
+      - malta-weather-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  malta-weather-network:
+    driver: bridge
