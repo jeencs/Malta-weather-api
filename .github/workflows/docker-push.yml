@@ -27,7 +27,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: naibzada
-          password: dckr_pat_DaymR8B_4lzT4VpEsUnbamFE4uI
+          password: dckr_pat_s6-iPUs6bXNfJEDP8djp33UXjYM
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
