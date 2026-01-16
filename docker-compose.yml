@@ -23,22 +23,8 @@ services:
     container_name: malta-weather-api
     ports:
       - "3000:3000"
-    environment:
-      PORT: 3000
-      NODE_ENV: production
-      API_VERSION: v1
-      CORS_ORIGIN: "*"
-      
-      DATABASE_URL: postgresql://weather_user:weather_pass@postgres:5432/malta_weather
-      DB_POOL_SIZE: 10
-      
-      SCRAPE_URL: https://www.malteseislandsweather.com
-      SCRAPE_INTERVAL: "*/3 * * * *"
-      SCRAPE_TIMEOUT: 15000
-      SCRAPE_USER_AGENT: MaltaWeatherAPI/1.0 (Educational Project; Respectful Scraping)
-      SCRAPE_RETRY_ATTEMPTS: 3
-      SCRAPE_RETRY_DELAY: 1000
-      LOG_LEVEL: info
+    depends_on:
+      - postgres
     networks:
       - malta-weather-network
 

@@ -5,7 +5,7 @@ export const config = {
     corsOrigin: '*',
   },
   database: {
-    url: 'postgresql://weather_user:weather_pass@localhost:5432/malta_weather',
+    url: 'postgresql://weather_user:weather_pass@postgres:5432/malta_weather',
     poolSize: 10,
   },
   scraper: {
